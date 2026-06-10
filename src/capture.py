@@ -1,7 +1,10 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+from anomaly import compute_anomaly_score, save_anomaly_event
 from scapy.all import sniff, Ether, IP, TCP, UDP
 import sqlite3
 import time
-import os
 
 # ─── DATABASE SETUP ───────────────────────────────────────────────────
 DB_PATH = '/home/devinlinux/sdztg-gateway/data/packets.db'
@@ -58,10 +61,14 @@ def parse_packet(pkt):
     }
 
 # ─── PACKET HANDLER ───────────────────────────────────────────────────
+packet_counter = 0
+
 def handle_packet(pkt):
+    global packet_counter
     record = parse_packet(pkt)
     if record is None:
         return
+    
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('''
@@ -75,7 +82,16 @@ def handle_packet(pkt):
     ))
     conn.commit()
     conn.close()
+    
     print(f"[PKT] {record['mac_src']} -> {record['ip_dst']}:{record['port_dst']} ({record['protocol']}) {record['size']}B")
+
+    # Score every 20 packets
+    packet_counter += 1
+    if packet_counter % 20 == 0:
+        score, breakdown = compute_anomaly_score(record['mac_src'])
+        if score is not None and score >= 0.3:
+            save_anomaly_event(record['mac_src'], score, breakdown)
+            print(f"[SCORE] {record['mac_src']} -> {score}")
 
 # ─── MAIN ─────────────────────────────────────────────────────────────
 if __name__ == '__main__':
