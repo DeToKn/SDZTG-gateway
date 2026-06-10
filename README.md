@@ -16,7 +16,7 @@ SQLite, Flask, and a PPO-based reinforcement learning policy core.
 ✅  Phase 1 — Writing first unit test (in progress)
 ✅ Phase 1.1 — Packet capture + SQLite persistence working
 ✅ Phase 2 — Baseline behavior profiling working (4 devices, real std dev)
-🔒 Phase 3 — Anomaly score engine (upcoming)
+✅ Phase 3 — Anomaly score engine working, tested with live traffic anomaly
 🔒 Phase 4 — DNS exfiltration detection (upcoming)
 🔒 Phase 5 — Flask dashboard (upcoming)
 🔒 Phase 6 — Alerting (upcoming)
