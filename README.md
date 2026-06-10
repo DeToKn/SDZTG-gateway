@@ -1,21 +1,45 @@
 # SDZTG-gateway
 
 ## Overview
-The Software-Defined Zero Trust Gateway (SDZTG) is an innovative solution designed to secure Internet of Things (IoT) devices within enterprise networks. As these devices proliferate, they often compromise network integrity due to inherent security weaknesses, such as hard-coded credentials and unencrypted communication. Our project tackles this challenge by providing a plug-and-play gateway that enforces zero trust principles, ensuring that outdated and vulnerable IoT devices are prevented from accessing sensitive data and systems. The SDZTG not only monitors traffic but also actively mitigates threats through inline policy enforcement, creating a robust defense against lateral movement of potential attacks.
+The Software-Defined Zero-Trust Gateway (SDZTG) is a plug-and-play 
+hardware-software appliance that enforces Zero-Trust security principles 
+on behalf of commodity IoT devices that cannot protect themselves. It sits 
+inline between IoT devices and the enterprise network, inspecting and 
+controlling all traffic without requiring any modification to the protected 
+devices.
 
-## Setup Instructions1. **Linux Environment** 
-- Ensure you have Python 3 installed: `python3 --version`
--  Ensure you have git installed: `git --version`
-- Install any other dependencies needed for the project.
+Built on a Raspberry Pi / commodity Linux platform using Python, Scapy, 
+SQLite, Flask, and a PPO-based reinforcement learning policy core.
 
-**Windows Workstation** - 
-Set up your code editor/IDE. 
-- Clone the repository: `git clone <repo-url>`.
+## Current Status
+✅ Phase 0 — Foundation complete (repo, environment, lab topology)
+🔄 Phase 1 — Packet capture (in progress)
+🔒 Phase 2 — Baseline behavior profiling (upcoming)
+🔒 Phase 3 — Anomaly score engine (upcoming)
+🔒 Phase 4 — DNS exfiltration detection (upcoming)
+🔒 Phase 5 — Flask dashboard (upcoming)
+🔒 Phase 6 — Alerting (upcoming)
 
-## Workflow- 
-Code on Windows- 
-Push to GitHub- 
-Pull on Linux- 
-Run and test
+## Hardware
+- Gateway: PC running Ubuntu 26.04 LTS (dual NIC)
+- Test device: Raspberry Pi Zero 2 W
+- See docs/lab.md for full topology and specs
+
+## Setup
+**Linux (gateway machine)**
+```bash
+git clone https://github.com/DeToKn/SDZTG-gateway.git
+cd SDZTG-gateway
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Workflow**
+1. Code on Windows (VS Code + Remote SSH)
+2. Push to GitHub
+3. Pull on Linux
+4. Run and test
 
 ## Documentation
+- [Lab Topology](docs/lab.md)
