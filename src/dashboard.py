@@ -91,7 +91,7 @@ def push_updates():
         except Exception as e:
             print(f'[PUSH ERROR] {e}')
 
-        time.sleep(1)
+        time.sleep(0.4)
 
 # ─── ROUTES ───────────────────────────────────────────────────────────
 @app.route('/')
