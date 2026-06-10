@@ -1,4 +1,5 @@
-time.sleep(1)import os
+time.sleep(1)
+import os
 import requests
 import sqlite3
 import time
