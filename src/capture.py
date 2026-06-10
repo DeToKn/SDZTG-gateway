@@ -4,7 +4,7 @@ import time
 import os
 
 # ─── DATABASE SETUP ───────────────────────────────────────────────────
-DB_PATH = os.path.expanduser('~/sdztg-gateway/data/packets.db')
+DB_PATH = '/home/devinlinux/sdztg-gateway/data/packets.db'
 
 def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
