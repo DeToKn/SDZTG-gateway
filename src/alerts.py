@@ -1,8 +1,8 @@
-time.sleep(1)
 import os
 import requests
 import sqlite3
 import time
+time.sleep(1)
 from dotenv import load_dotenv
 
 # Load .env from project root
