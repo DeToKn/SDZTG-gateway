@@ -18,8 +18,8 @@ SQLite, Flask, and a PPO-based reinforcement learning policy core.
 ✅ Phase 2 — Baseline behavior profiling working (4 devices, real std dev)
 ✅ Phase 3 — Anomaly score engine working, tested with live traffic anomaly
 ✅ Phase 4 — DNS exfiltration detection working (LONG_LABEL + HIGH_ENTROPY + BURST)
-🔒 Phase 5 — Flask dashboard (upcoming)
-🔒 Phase 6 — Alerting (upcoming)
+✅ Phase 5 — Real-time WebSocket dashboard, <2s lag, WAL SQLite, inline anomaly scoring
+✅ Phase 6 — Telegram + webhook alerts firing in real time
 
 ## Hardware
 - Gateway: PC running Ubuntu 26.04 LTS (dual NIC)
