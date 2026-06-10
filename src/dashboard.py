@@ -24,9 +24,16 @@ def query_db(sql, args=()):
         return []
 
 # ─── BACKGROUND PUSHER ────────────────────────────────────────────────
-last_packet_id = 0
-last_anomaly_id = 0
-last_dns_id = 0
+def get_last_id(table, id_col='id'):
+    try:
+        rows = query_db(f'SELECT MAX({id_col}) as mid FROM {table}')
+        return rows[0]['mid'] or 0
+    except:
+        return 0
+
+last_packet_id = get_last_id('packets')
+last_anomaly_id = get_last_id('anomaly_events')
+last_dns_id = get_last_id('dns_events')
 
 def push_updates():
     global last_packet_id, last_anomaly_id, last_dns_id
@@ -91,7 +98,7 @@ def push_updates():
         except Exception as e:
             print(f'[PUSH ERROR] {e}')
 
-        time.sleep(0.4)
+        time.sleep(1)
 
 # ─── ROUTES ───────────────────────────────────────────────────────────
 @app.route('/')
