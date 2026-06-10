@@ -6,19 +6,22 @@ import threading
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sdztg-secret'
-socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins='*')
+socketio = SocketIO(app, async_mode='threading', cors_allowed_origins='*')
 
 DB_PATH = '/home/devinlinux/sdztg-gateway/data/packets.db'
 
 # ─── DB HELPER ────────────────────────────────────────────────────────
 def query_db(sql, args=()):
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    c.execute(sql, args)
-    rows = c.fetchall()
-    conn.close()
-    return [dict(r) for r in rows]
+    try:
+        conn = sqlite3.connect(DB_PATH, timeout=5)
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute(sql, args)
+        rows = c.fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except sqlite3.OperationalError:
+        return []
 
 # ─── BACKGROUND PUSHER ────────────────────────────────────────────────
 last_packet_id = 0
@@ -96,7 +99,7 @@ def index():
     return render_template_string(HTML)
 
 @socketio.on('connect')
-def on_connect():
+def on_connect(auth=None):
     print('[WS] Client connected')
     # Send initial data on connect
     packets = query_db('''
@@ -442,4 +445,4 @@ if __name__ == '__main__':
     t = threading.Thread(target=push_updates, daemon=True)
     t.start()
     print('[*] SDZTG Dashboard running at http://0.0.0.0:5000')
-    socketio.run(app, host='0.0.0.0', port=5000)
+    socketio.run(app, host='0.0.0.0', port=5000, allow_unsafe_werkzeug=True)
