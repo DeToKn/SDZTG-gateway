@@ -1,0 +1,81 @@
+# SDZTG Policy Engine — Policy Schema v1
+# Maps to roadmap items P2 (parser) and P3 (enforcement)
+# Evaluation order: allow rules checked first, then deny rules, then default-deny.
+# On conflict (a flow matches both an allow and a deny rule), DENY WINS.
+# This is the zero-trust-correct default: when in doubt, block.
+
+schema_version: 1
+
+# ---------------------------------------------------------------------------
+# DEVICE REGISTRY
+# Maps a human-readable name to a MAC address. Rules below reference devices
+# by name, never by raw MAC — this is what stays stable even if a device's
+# DHCP lease/IP changes, and is what the Device Profiler (stretch phase)
+# will eventually auto-populate.
+# ---------------------------------------------------------------------------
+devices:
+  - name: laptop-victim
+    mac: "20:47:47:50:e2:e5"     # old laptop, wired into enxa0cec8b67eda (DHCP .177)
+    notes: "Test/victim device, downstream of br0 via enxa0cec8b67eda"
+
+# ---------------------------------------------------------------------------
+# ALLOW RULES
+# Checked first. A flow matching ANY allow rule is tentatively permitted,
+# UNLESS it also matches a deny rule below (deny always wins on conflict).
+#
+# `device:` accepts a single name, a list of names, or the wildcard "any" —
+# "any" means this rule applies to every device, known or not yet registered.
+# This is what makes the system plug-and-play: a brand-new device that has
+# never been seen before still falls under any "any" rules immediately,
+# rather than getting silently default-denied until someone hand-writes
+# a rule for it.
+# ---------------------------------------------------------------------------
+allow:
+  - device: any
+    dest: 192.168.1.1             # e.g. your TP-Link / upstream gateway
+    port: any
+    protocol: any
+    notes: "Every device may reach the local router for management/DHCP/DNS"
+
+  - device: laptop-victim
+    dest: any
+    port: [80, 443]
+    protocol: tcp
+    notes: "Allow normal web browsing for baseline traffic testing"
+
+# ---------------------------------------------------------------------------
+# DENY RULES
+# Checked second. ALWAYS wins over an allow match on the same flow.
+# Use this for known-bad destinations, ports, or explicit lockdowns —
+# this is where TAD anomaly-triggered quarantine/throttle rules will be
+# injected dynamically at runtime (P3), separate from this static file.
+#
+# `action:` here can be "deny" (today's binary block) or, once P3 wires in
+# the action ladder, "throttle" / "quarantine" — see notes below each.
+# ---------------------------------------------------------------------------
+deny:
+  - device: any
+    dest: any
+    port: [23, 21]                # telnet, ftp — example known-bad ports
+    protocol: tcp
+    action: deny
+    notes: "Deny known-insecure legacy protocols for every device, no exceptions"
+
+  - device: any
+    dest: any
+    port: any
+    protocol: any
+    action: throttle
+    condition: "new_device"       # a device not yet in the registry
+    notes: >
+      Plug-and-play safety net: a brand-new, never-seen device gets
+      bandwidth-capped (not fully blocked) until it's reviewed and either
+      added to the registry with its own allow rules, or explicitly denied.
+      This is the 'learn mode' precursor mentioned in P4.
+
+# ---------------------------------------------------------------------------
+# DEFAULT POLICY
+# Anything not matched by an allow or deny rule above falls through to here.
+# Per FR11 (default-deny), this MUST be "deny" — do not change to "allow".
+# ---------------------------------------------------------------------------
+default: deny
