@@ -230,3 +230,79 @@ def evaluate(flow: Flow, policy: dict, device_lookup: dict) -> Decision:
         matched_rule="default",
         reason="No allow or deny rule matched; default-deny applied (FR11)",
     )
+
+
+# ---------------------------------------------------------------------------
+# Decision logging (SQLite) — deliberately kept SEPARATE from evaluate()
+# ---------------------------------------------------------------------------
+#
+# evaluate() above is a pure function: same flow + same policy always
+# produces the same Decision, with no side effects. That's what lets the
+# test harness call it hundreds of times against fake data with zero risk
+# of polluting a real database, and what lets it run on any machine
+# (including one with no /data folder at all) without crashing.
+#
+# save_decision() is the side-effecting half — it takes a Decision that's
+# already been computed and writes it to disk. Every real call site in
+# capture.py will call evaluate() and then save_decision() back-to-back,
+# the same way handle_packet() already calls compute_anomaly_score() and
+# then separately writes to SQLite. Same pattern, new table.
+
+import sqlite3
+import time
+
+
+def init_decisions_table(db_path: str) -> None:
+    """
+    Create the `decisions` table if it doesn't exist yet. Mirrors the
+    `packets` table's own CREATE TABLE IF NOT EXISTS pattern in capture.py,
+    including an index on (mac_src, ts) for the same reason: fast lookups
+    of "what has this device been doing over time" for the dashboard.
+    """
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS decisions (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts           REAL,
+            mac_src      TEXT,
+            dest         TEXT,
+            port         INTEGER,
+            protocol     TEXT,
+            action       TEXT,
+            matched_rule TEXT,
+            reason       TEXT
+        )
+    ''')
+    c.execute('CREATE INDEX IF NOT EXISTS idx_decisions_mac_ts ON decisions (mac_src, ts)')
+    conn.commit()
+    conn.close()
+
+
+def save_decision(flow: Flow, decision: Decision, db_path: str) -> None:
+    """
+    Write one Decision to the decisions table. One row per evaluate() call
+    site, same connect/insert/commit/close pattern as handle_packet() in
+    capture.py — no connection pooling, a fresh connection per write. This
+    matches the existing codebase's style rather than introducing a new
+    pattern (e.g. a long-lived connection) that would need explaining
+    separately.
+    """
+    conn = sqlite3.connect(db_path)
+    c = conn.cursor()
+    c.execute('''
+        INSERT INTO decisions
+        (ts, mac_src, dest, port, protocol, action, matched_rule, reason)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        time.time(),
+        flow.src_mac,
+        flow.dest,
+        flow.port,
+        flow.protocol,
+        decision.action,
+        decision.matched_rule,
+        decision.reason,
+    ))
+    conn.commit()
+    conn.close()
