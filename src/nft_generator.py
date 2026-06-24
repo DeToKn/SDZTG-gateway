@@ -113,6 +113,51 @@ def _rule_to_nft(rule, mac_for_device, verb):
     return f"        {match} {verb}"
 
 
+def _reverse_rule_to_nft(rule, mac_for_device):
+    """
+    Build the REVERSE of an allow rule, to permit return traffic in a
+    stateless filter. Where the forward rule matched "device sends out to
+    port X" (ether saddr <mac>, dport X), the reverse matches "replies come
+    back to that device from port X" (ether daddr <mac>, sport X).
+
+    Returns None if there's no meaningful reverse to build (e.g. a port:any
+    rule needs no port-mirrored reverse — its forward rule already permits
+    broadly, and a catch-all reverse would be too loose to be worth it).
+    """
+    parts = []
+
+    # device -> ether DADDR (reply is addressed TO the device)
+    device = rule.get("device", "any")
+    if device != "any":
+        mac = mac_for_device(device)
+        if mac is None:
+            return None
+        parts.append(f"ether daddr {mac}")
+
+    # protocol + SOURCE port (reply comes FROM the port we allowed out to)
+    proto = _normalize_protocol(rule.get("protocol", "any"))
+    port = rule.get("port", "any")
+    if port == "any":
+        # No specific port to mirror — skip building a reverse rule rather
+        # than emit an overly broad "anything back to this device" accept.
+        return None
+    if isinstance(port, list):
+        ports = ", ".join(str(p) for p in port)
+        sport_clause = f"sport {{ {ports} }}"
+    else:
+        sport_clause = f"sport {port}"
+
+    if proto:
+        parts.append(f"{proto} {sport_clause}")
+    else:
+        parts.append(f"tcp {sport_clause}")
+
+    match = " ".join(parts)
+    if not match:
+        return None
+    return f"        {match} accept    # reverse/return-path for allow rule above"
+
+
 def generate_ruleset(policy: dict) -> str:
     """
     Build the full nftables bridge-filter ruleset text from a loaded policy
@@ -172,14 +217,24 @@ def generate_ruleset(policy: dict) -> str:
             lines.append(nft_line)
     lines.append("")
 
-    # --- ALLOW rules ---
-    lines.append(f"        # --- allow rules (from policy.yaml allow:) ---")
+    # --- ALLOW rules (forward + reverse for return traffic) ---
+    # Because the bridge family is STATELESS (no ct state), each allow rule
+    # needs a mirror that permits the return traffic. Forward rule matches
+    # the device sending out (saddr + dport); reverse rule matches replies
+    # coming back (daddr + sport). This is the Option-1 tradeoff: it's
+    # looser than stateful tracking (a packet that merely claims sport 443
+    # is accepted), but acceptable for the isolated test topology. Documented
+    # as such; Option 2 (inet-family conntrack) is future work.
+    lines.append(f"        # --- allow rules + reverse return-path (stateless, Option 1) ---")
     for i, rule in enumerate(policy.get("allow", [])):
-        nft_line = _rule_to_nft(rule, mac_for_device, "accept")
-        if nft_line is None:
+        fwd = _rule_to_nft(rule, mac_for_device, "accept")
+        if fwd is None:
             lines.append(f"        # SKIPPED allow[{i}]: device not in registry")
-        else:
-            lines.append(nft_line)
+            continue
+        lines.append(fwd)
+        rev = _reverse_rule_to_nft(rule, mac_for_device)
+        if rev is not None:
+            lines.append(rev)
     lines.append("")
 
     lines.append(f"        # --- default ---")
