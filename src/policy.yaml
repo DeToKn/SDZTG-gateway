@@ -43,6 +43,18 @@ allow:
     protocol: tcp
     notes: "Allow normal web browsing for baseline traffic testing"
 
+  - device: laptop-victim
+    dest: any
+    port: 53
+    protocol: udp
+    notes: "Allow DNS resolution (UDP/53) - required before any 80/443 connection can even be attempted; discovered missing during live nftables test on 2026-06-24"
+
+  - device: laptop-victim
+    dest: any
+    port: 53
+    protocol: tcp
+    notes: "Allow DNS over TCP (fallback for large DNS responses, e.g. DNSSEC)"
+
 # ---------------------------------------------------------------------------
 # DENY RULES
 # Checked second. ALWAYS wins over an allow match on the same flow.
